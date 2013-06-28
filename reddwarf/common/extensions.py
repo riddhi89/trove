@@ -18,11 +18,13 @@
 import routes
 import webob.dec
 from reddwarf.openstack.common import log as logging
-
+from pprint import pformat
 from reddwarf.openstack.common import extensions
 from reddwarf.openstack.common.gettextutils import _
 from reddwarf.common import cfg
 from reddwarf.common import wsgi
+from reddwarf.extensions.mysql import service
+
 
 LOG = logging.getLogger(__name__)
 
@@ -38,7 +40,6 @@ class ReddwarfExtensionMiddleware(extensions.ExtensionMiddleware):
         ext_mgr = (ext_mgr or
                    ExtensionManager(CONF.api_extensions_path))
         mapper = routes.Mapper()
-
         # extended resources
         for resource_ext in ext_mgr.get_resources():
             LOG.debug(_('Extended resource: %s'), resource_ext.collection)
@@ -79,8 +80,7 @@ class ReddwarfExtensionMiddleware(extensions.ExtensionMiddleware):
             controller.add_handler(request_ext.handler)
 
         self._router = routes.middleware.RoutesMiddleware(self._dispatch,
-                                                          mapper)
-
+                                                          mapper)  
         super(extensions.ExtensionMiddleware, self).__init__(application)
 
 

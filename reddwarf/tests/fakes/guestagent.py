@@ -87,6 +87,52 @@ class FakeGuest(object):
                     % (username, hostname))
             self.users[(username, hostname)]['password'] = password
 
+    def update_attributes(self, username, hostname, user_attrs):
+        LOG.debug("Updating attributes")
+        self._check_username(username)    
+        if (username, hostname) not in self.users:
+                raise rd_exception.UserNotFound(
+                    "User %s@%s cannot be found on the instance."
+                    % (username, hostname))
+        c1 = user_attrs['name'] is not None
+        c2 = user_attrs['host'] is not None
+        c3 = user_attrs['password'] is not None
+        if c1 and not c2 and not c3:
+            self._create_user({
+            "_name": user_attrs['name'],
+            "_host": hostname,
+            "_password": self.users[(username, hostname)]['password'],
+            "_databases": [],
+            })  
+            current_grants = self.grants.get((username, hostname), set())
+            self.grants[(user_attrs['name'], hostname)] = current_grants
+            self.grants[(username, hostname)] = set()
+            del self.users[(username, hostname)]     
+        if c2 and not c1 and not c3:
+             self._create_user({
+            "_name": username,
+            "_host": user_attrs['host'],
+            "_password": self.users[(username, hostname)]['password'],
+            "_databases": [],
+            })    
+            current_grants = self.grants.get((username, hostname), set())
+            self.grants[(username, user_attrs['host'])] = current_grants
+            self.grants[(username, hostname)] = set()
+            del self.users[(username, hostname)]
+        if c3 and not c1 and not c2:
+            self.users[(username, hostname)]['password'] = user_attrs['password']                
+        if c1 and c2 and not c3:
+             self._create_user({
+            "_name": user_attrs['name'],
+            "_host": user_attrs['host'],
+            "_password": self.users[(username, hostname)]['password'],
+            "_databases": [],
+            })  
+            current_grants = self.grants.get((username, hostname), set())
+            self.grants[(user_attrs['name'], user_attrs['host'])] = current_grants
+            self.grants[(username, hostname)] = set()
+            del self.users[(username, hostname)]     
+    
     def create_database(self, databases):
         for db in databases:
             self.dbs[db['_name']] = db

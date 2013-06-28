@@ -442,6 +442,7 @@ class MySQLUser(Base):
 
     @host.setter
     def host(self, value):
+        print('value', value)
         if not self._is_valid_host_name(value):
             raise ValueError("'%s' is not a valid hostname." % value)
         else:

@@ -139,6 +139,13 @@ class User(object):
             change_users.append(change_user)
         client.change_passwords(change_users)
 
+    @classmethod
+    def update_attributes(cls, context, instance_id, username, hostname, 
+                            user_attrs):   
+        load_and_verify(context, instance_id)
+        client = create_guest_client(context, instance_id)
+        client.update_attributes(username, hostname, user_attrs)   
+
 
 class UserAccess(object):
     _data_fields = ['databases']

@@ -20,6 +20,7 @@ from reddwarf.openstack.common import log as logging
 from reddwarf.common import extensions
 from reddwarf.common import wsgi
 from reddwarf.extensions.mysql import service
+from pprint import pformat
 
 
 LOG = logging.getLogger(__name__)
@@ -65,7 +66,8 @@ class Mysql(extensions.ExtensionsDescriptor):
             # deserializer=extensions.ExtensionsXMLSerializer()
             deserializer=wsgi.ReddwarfRequestDeserializer(),
             serializer=serializer,
-            collection_actions={'update': 'PUT'})
+            member_actions={'update': 'PUT'},
+            collection_actions={'update_all': 'PUT'})
         resources.append(resource)
 
         collection_url = '{tenant_id}/instances/:instance_id/users'
@@ -87,5 +89,5 @@ class Mysql(extensions.ExtensionsDescriptor):
             deserializer=wsgi.ReddwarfRequestDeserializer(),
             serializer=serializer)
         resources.append(resource)
-
+       
         return resources

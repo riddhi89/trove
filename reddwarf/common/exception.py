@@ -285,3 +285,6 @@ class BackupFileNotFound(NotFound):
 class SwiftAuthError(ReddwarfError):
 
     message = _("Swift account not accessible for tenant %(tenant_id)s.")
+
+class UserAttributesNotFound(BadRequest):
+    message = _("Atleast one attribute for update needs to be specified.")    

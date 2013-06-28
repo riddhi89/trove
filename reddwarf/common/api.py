@@ -13,13 +13,15 @@
 #    under the License.
 
 import routes
-
+from reddwarf.openstack.common import log as logging
 from reddwarf.common import wsgi
 from reddwarf.flavor.service import FlavorController
 from reddwarf.instance.service import InstanceController
 from reddwarf.limits.service import LimitsController
 from reddwarf.backup.service import BackupController
 from reddwarf.versions import VersionsController
+
+LOG = logging.getLogger(__name__)
 
 
 class API(wsgi.Router):
@@ -42,7 +44,7 @@ class API(wsgi.Router):
         path = "/{tenant_id}/instances"
         mapper.resource("instance", path, controller=instance_resource,
                         member={'action': 'POST', 'backups': 'GET'})
-
+      
     def _flavor_router(self, mapper):
         flavor_resource = FlavorController().create_resource()
         path = "/{tenant_id}/flavors"
@@ -52,7 +54,7 @@ class API(wsgi.Router):
         limits_resource = LimitsController().create_resource()
         path = "/{tenant_id}/limits"
         mapper.resource("limits", path, controller=limits_resource)
-
+     
     def _backups_router(self, mapper):
         backups_resource = BackupController().create_resource()
         path = "/{tenant_id}/backups"

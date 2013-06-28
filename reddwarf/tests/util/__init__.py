@@ -26,7 +26,7 @@
 .. moduleauthor:: Tim Simpson <tim.simpson@rackspace.com>
 """
 
-import re
+import re 
 import subprocess
 import sys
 import time
@@ -44,7 +44,7 @@ except ImportError:
 
 from sqlalchemy import create_engine
 
-from reddwarfclient import exceptions
+from troveclient import exceptions
 
 from proboscis import test
 from proboscis.asserts import assert_false
@@ -54,8 +54,8 @@ from proboscis.asserts import Check
 from proboscis.asserts import fail
 from proboscis.asserts import ASSERTION_ERROR
 from proboscis import SkipTest
-from reddwarfclient import Dbaas
-from reddwarfclient.client import ReddwarfHTTPClient
+from troveclient import Dbaas
+from troveclient.client import TroveHTTPClient
 from reddwarf import tests
 from reddwarfclient.xml import ReddwarfXmlClient
 from reddwarf.tests.util import test_config as CONFIG
