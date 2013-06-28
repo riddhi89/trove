@@ -285,3 +285,9 @@ class BackupFileNotFound(NotFound):
 class SwiftAuthError(TroveError):
 
     message = _("Swift account not accessible for tenant %(tenant_id)s.")
+
+
+class UserAttributesNotFound(BadRequest):
+
+    message = _("Atleast one of the following attributes needs "
+                "to be specified: %(req_attrs)s")

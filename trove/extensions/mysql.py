@@ -65,6 +65,7 @@ class Mysql(extensions.ExtensionsDescriptor):
             # deserializer=extensions.ExtensionsXMLSerializer()
             deserializer=wsgi.TroveRequestDeserializer(),
             serializer=serializer,
+            member_actions={'update_one': 'PUT'},
             collection_actions={'update': 'PUT'})
         resources.append(resource)
 

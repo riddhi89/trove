@@ -130,6 +130,28 @@ class UserController(wsgi.Controller):
         view = views.UserView(user)
         return wsgi.Result(view.data(), 200)
 
+    def update_one(self, req, body, tenant_id, instance_id, id):
+        """Change attributes for one user."""
+        LOG.info(_("Updating user attributes for instance '%s'") % instance_id)
+        LOG.info(_("req : '%s'\n\n") % req)
+        context = req.environ[wsgi.CONTEXT_KEY]
+        username, hostname = unquote_user_host(id)
+        if not body:
+            req_attrs = ['new_name', 'new_host', 'new_password']
+            raise exception.UserAttributesNotFound(uuid=id,
+                                                   req_attrs=req_attrs)
+        user = None
+        user_attrs = body['user']
+        try:
+            user = models.User.load(context, instance_id, username, hostname)
+        except (ValueError, AttributeError) as e:
+            raise exception.BadRequest(msg=str(e))
+        if not user:
+            raise exception.UserNotFound(uuid=id)
+        models.User.update_attributes(context, instance_id, username, hostname,
+                                      user_attrs)
+        return wsgi.Result(None, 202)
+
     def update(self, req, body, tenant_id, instance_id):
         """Change the password of one or more users."""
         LOG.info(_("Updating user passwords for instance '%s'") % instance_id)
