@@ -28,7 +28,6 @@ from trove.db import get_db_api
 from trove.openstack.common import log as logging
 from trove.datastore import models as datastore_models
 
-
 CONF = cfg.CONF
 
 
@@ -79,6 +78,26 @@ class Commands(object):
         """Drops the database and recreates it."""
         self.db_api.drop_db(CONF)
         self.db_sync(repo_path)
+
+    def datastore_flavor_add(self, datastore_version_id, flavor_ids):
+        """Adds flavors for a given datastore version id."""
+        try:
+            datastore_models.DatastoreVersionMetadata.datastore_flavor_add(
+                datastore_version_id, flavor_ids.split(","))
+            LOG.debug("Added flavors to the datastore_version_id '%s'."
+                      % datastore_version_id)
+        except exception.DatastoreVersionNotFound as e:
+            LOG.exception(e)
+
+    def datastore_flavor_delete(self, datastore_version_id, flavor_id):
+        """Deletes a flavor's association with a given datastore."""
+        try:
+            datastore_models.DatastoreVersionMetadata.datastore_flavor_delete(
+                datastore_version_id, flavor_id)
+            LOG.debug("Deleted flavor from datastore_version_id '%s'."
+                      % datastore_version_id)
+        except exception.DatastoreVersionNotFound as e:
+            LOG.exception(e)
 
     def params_of(self, command_name):
         if Commands.has(command_name):
@@ -142,6 +161,25 @@ def main():
         parser = subparser.add_parser(
             'db_recreate', description='Drop the database and recreate it.')
         parser.add_argument('repo_path', help=repo_path_help)
+
+        parser = subparser.add_parser(
+            'datastore_flavor_add', help='Adds flavors for a given datastore '
+            'version id.')
+        parser.add_argument('datastore_version_id', help='Datastore version '
+                            'id.')
+        parser.add_argument('flavors', help='Comma separated list of '
+                            'flavors.')
+
+        parser = subparser.add_parser(
+            'datastore_flavor_delete', help='Deletes a flavor\'s association '
+            'with a given datastore.')
+        parser.add_argument('datastore_version_id', help='Datastore version '
+                            'id.')
+        parser.add_argument('flavor_id', help='The flavor to be deleted for '
+                            'the version.')
+        parser = subparser.add_parser(
+            'get_datastore_version_id', help='Gets the default datastore '
+            'version id.')
     cfg.custom_parser('action', actions)
     cfg.parse_args(sys.argv)
 

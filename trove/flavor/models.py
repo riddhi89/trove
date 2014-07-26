@@ -20,6 +20,9 @@ from novaclient import exceptions as nova_exceptions
 from trove.common import exception
 from trove.common.models import NovaRemoteModelBase
 from trove.common.remote import create_nova_client
+from trove.datastore.models import DBDatastoreVersionMetadata
+from trove.datastore.models import DBDatastoreVersion
+from trove.datastore.models import get_datastore_version
 
 
 class Flavor(object):
@@ -70,9 +73,26 @@ class Flavor(object):
 
 class Flavors(NovaRemoteModelBase):
 
-    def __init__(self, context):
+    def __init__(self, context, datastore_version_id=None):
         nova_flavors = create_nova_client(context).flavors.list()
-        self.flavors = [Flavor(flavor=item) for item in nova_flavors]
+        if datastore_version_id:
+            self.datastore_version_id = datastore_version_id
+            # Generate list of flavor ID's attached to the datastore version.
+            try:
+                bound_flavors = DBDatastoreVersionMetadata.find_all(
+                    datastore_version_id=self.datastore_version_id,
+                    key='flavor', deleted=False
+                )
+                bound_flavors = tuple(f.value for f in bound_flavors)
+            except exception.ModelNotFoundError:
+                bound_flavors = ()
+
+            # Generate a filtered list of nova flavors
+            ds_nova_flavors = (f for f in nova_flavors if f.id in bound_flavors)
+            self.flavors = tuple(Flavor(flavor=item) for item in ds_nova_flavors)
+        else:
+            # for default datastore version
+            self.flavors = tuple(Flavor(flavor=item) for item in nova_flavors)
 
     def __iter__(self):
         for item in self.flavors:

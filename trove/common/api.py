@@ -104,6 +104,12 @@ class API(wsgi.Router):
                        controller=flavor_resource,
                        action="show",
                        conditions={'method': ['GET']})
+        mapper.connect(
+            "/{tenant_id}/flavors/datastores/versions/{datastore_version_id}",
+            controller=flavor_resource,
+            action="index",
+            conditions={'method': ['GET']}
+        )
 
     def _limits_router(self, mapper):
         limits_resource = LimitsController().create_resource()

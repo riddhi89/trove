@@ -13,7 +13,7 @@
 #    under the License.
 
 import testtools
-from trove.datastore import models as datastore_models
+from trove.datastore.models import DatastoreVersionMetadata
 from trove.datastore.models import Datastore
 from trove.datastore.models import Capability
 from trove.datastore.models import DatastoreVersion
@@ -34,12 +34,16 @@ class TestDatastoreBase(testtools.TestCase):
         self.capability_name = "root_on_create" + self.rand_id
         self.capability_desc = "Enables root on create"
         self.capability_enabled = True
+        self.datastore_version_id = str(uuid.uuid4())
+        self.flavor_id = 1
 
         datastore_models.update_datastore(self.ds_name, False)
         self.datastore = Datastore.load(self.ds_name)
 
         datastore_models.update_datastore_version(
             self.ds_name, self.ds_version, "mysql", "", "", True)
+        DatastoreVersionMetadata.datastore_flavor_add(
+            self.datastore_version_id, self.flavor_id)
 
         self.datastore_version = DatastoreVersion.load(self.datastore,
                                                        self.ds_version)
@@ -64,6 +68,8 @@ class TestDatastoreBase(testtools.TestCase):
         self.cap2.delete()
         self.cap3.delete()
         Datastore.load(self.ds_name).delete()
+        datastore_models.DBDatastoreVersionMetadata.load(
+            datastore_version_id=self.datastore_version_id).delete()
 
     def capability_name_filter(self, capabilities):
         new_capabilities = []

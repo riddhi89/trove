@@ -24,7 +24,9 @@ from troveclient.v1.flavors import Flavor
 from proboscis import before_class
 from proboscis import test
 from proboscis.asserts import assert_raises
+from proboscis import SkipTest
 
+from trove.datastore import models as dsmodels
 from trove import tests
 from trove.tests.util import create_dbaas_client
 from trove.tests.util import create_nova_client
@@ -33,7 +35,8 @@ from trove.tests.util.users import Requirements
 from trove.tests.util.check import AttrCheck
 
 GROUP = "dbaas.api.flavors"
-
+GROUP_DS = "dbaas.api.datastores"
+FAKE = test_config.values['fake_mode']
 
 servers_flavors = None
 dbaas_flavors = None
@@ -86,7 +89,7 @@ def assert_link_list_is_equal(flavor):
             assert_false(True, "Unexpected rel - %s" % link['rel'])
 
 
-@test(groups=[tests.DBAAS_API, GROUP, tests.PRE_INSTANCES],
+@test(groups=[tests.DBAAS_API, GROUP, GROUP_DS, tests.PRE_INSTANCES],
       depends_on_groups=["services.initialize"])
 class Flavors(object):
 
@@ -162,3 +165,103 @@ class Flavors(object):
     def test_flavor_not_found(self):
         assert_raises(exceptions.NotFound,
                       self.rd_client.flavors.get, "detail")
+
+    @test
+    def test_flavor_list_by_datastore_version_id(self):
+        ds_version = self.rd_client.datastores.get(
+            test_config.dbaas_datastore)
+        dbaas_flavors = self.rd_client.flavors.list_by_versionid(
+            datastore_version_id=ds_version.default_version)
+        os_flavors = self.get_expected_flavors()
+        assert_equal(len(dbaas_flavors), len(os_flavors))
+        # verify flavor lists are identical
+        for os_flavor in os_flavors:
+            found_index = None
+            for index, dbaas_flavor in enumerate(dbaas_flavors):
+                if os_flavor.name == dbaas_flavor.name:
+                    msg = ("Flavor ID '%s' appears in elements #%s and #%d." %
+                           (dbaas_flavor.id, str(found_index), index))
+                    assert_true(found_index is None, msg)
+                    assert_flavors_roughly_equivalent(os_flavor, dbaas_flavor)
+                    found_index = index
+            msg = "Some flavors from OS list were missing in DBAAS list."
+            assert_false(found_index is None, msg)
+        for flavor in dbaas_flavors:
+            assert_link_list_is_equal(flavor)
+
+    @test
+    def test_flavor_list_by_invalid_datastore_version_id(self):
+        ds_version = 'invalid-version-id'
+        assert_raises(exceptions.NotFound,
+                      self.rd_client.flavors.list_by_versionid,
+                      ds_version)
+
+    @test
+    def test_flavor_list_by_datastore_version_id_valid_flavors(self):
+        if not FAKE:
+            raise SkipTest("Can perform this test only in fake mode")
+        else:
+            ds_version = self.rd_client.datastores.get(
+                test_config.dbaas_datastore)
+            db_record = dsmodels.DBDatastoreVersionMetadata.find_by(
+                datastore_version_id=ds_version.default_version,
+                value='1')
+            db_record.delete()
+            # verify that the nova flavor 1 is absent in the dbaas flavor list
+            # for the datastore version id.
+            dbaas_flavors = self.rd_client.flavors.list_by_versionid(
+                datastore_version_id=ds_version.default_version)
+            os_flavors = self.get_expected_flavors()
+            assert_equal(len(dbaas_flavors), len(os_flavors) - 1)
+
+            for os_flavor in os_flavors:
+                if (os_flavor.id == 1):
+                    found_flavor = False
+                    for dbaas_flavor in dbaas_flavors:
+                        if (dbaas_flavor.id == 1):
+                            found_flavor = True
+                            break
+            msg = "Flavor id '1' not present in the OS flavor list."
+            assert_false(found_flavor, msg)
+
+            # add the association back in for other tests
+            datastore_flavor_mapping = DBDatastoreVersionMetadata.create(
+                datastore_version_id=ds_version.default_version, value='1')
+            datastore_flavor_mapping.save()
+
+
+@test(groups=[tests.DBAAS_API, GROUP, GROUP_DS],
+      depends_on_groups=["services.initialize"])
+class DatastoreFlavorAssociation(object):
+
+    @before_class
+    def setUp(self):
+        rd_user = test_config.users.find_user(
+            Requirements(is_admin=False, services=["trove"]))
+        self.rd_client = create_dbaas_client(rd_user)
+
+        self.data_store = self.rd_client.datastores.get(
+            test_config.dbaas_datastore)
+        self.name1 = "test_instance1"
+        self.name2 = "test_instance2"
+        self.volume = {'size': 2}
+        self.instance_id = None
+
+    @test
+    def test_create_instance_with_valid_flavor_association(self):
+        # all the nova flavors are associated with the default datastore
+        result = self.rd_client.instances.create(
+            name=self.name1, flavor_id='1', volume=self.volume,
+            datastore=self.data_store.id)
+        self.instance_id = result.id
+        assert_equal(200, self.rd_client.last_http_code)
+
+    @test
+    def test_create_instance_with_invalid_flavor_association(self):
+        databases = []
+        assert_raises(exceptions.BadRequest,
+                      self.rd_client.instances.create, self.name2, '100',
+                      self.volume, databases, datastore=self.data_store.id)
+
+    def tearDown(self):
+        self.rd_client.instances.delete(self.instance_id)

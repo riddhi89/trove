@@ -31,10 +31,13 @@ class FlavorController(wsgi.Controller):
         # Pass in the request to build accurate links.
         return wsgi.Result(views.FlavorView(flavor, req).data(), 200)
 
-    def index(self, req, tenant_id):
+    def index(self, req, tenant_id, datastore_version_id=None):
         """Return all flavors."""
         context = req.environ[wsgi.CONTEXT_KEY]
-        flavors = models.Flavors(context=context)
+        flavors = models.Flavors(
+            context=context,
+            datastore_version_id=datastore_version_id,
+        )
         return wsgi.Result(views.FlavorsView(flavors, req).data(), 200)
 
     def _validate_flavor_id(self, id):

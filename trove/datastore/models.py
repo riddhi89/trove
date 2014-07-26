@@ -35,6 +35,7 @@ def persisted_models():
         'capabilities': DBCapabilities,
         'datastore_version': DBDatastoreVersion,
         'capability_overrides': DBCapabilityOverrides,
+        'datastore_version_metadata': DBDatastoreVersionMetadata
     }
 
 
@@ -57,6 +58,12 @@ class DBDatastoreVersion(dbmodels.DatabaseModelBase):
 
     _data_fields = ['id', 'datastore_id', 'name', 'manager', 'image_id',
                     'packages', 'active']
+
+
+class DBDatastoreVersionMetadata(dbmodels.DatabaseModelBase):
+    _data_fields = ['id', 'datastore_version_id', 'key', 'value',
+                    'created', 'deleted', 'deleted_at']
+    preserve_on_delete = True
 
 
 class Capabilities(object):
@@ -523,4 +530,50 @@ def update_datastore_version(datastore, name, manager, image_id, packages,
     version.image_id = image_id
     version.packages = packages
     version.active = active
+
     db_api.save(version)
+
+
+class DatastoreVersionMetadata(object):
+
+    @classmethod
+    def datastore_flavor_add(cls, datastore_version_id, flavor_ids):
+        """Create a datastore version - flavor association"""
+        # Do we have a mapping in the db?
+        # yes: and its deleted then modify the association
+        # yes: and its not deleted then error on create
+        # no: then just create the new association
+        db_api.configure_db(CONF)
+
+        for flavor in flavor_ids:
+            try:
+                db_record = DBDatastoreVersionMetadata.find_by(
+                    datastore_version_id=datastore_version_id,
+                    key='flavor', value=flavor, deleted=True)
+                if db_record.deleted == 1:
+                    db_record.deleted = 0
+                    db_record.updated_at = utils.utcnow()
+                    db_record.save()
+                    continue
+                else:
+                    raise exception.DatastoreFlavorAssociationAlreadyExists(
+                        version_id=datastore_version_id, flavor_id=flavor_id)
+            except exception.NotFound:
+                pass        
+            datastore_flavor_mapping = DBDatastoreVersionMetadata.create(
+                datastore_version_id=datastore_version_id,
+                key='flavor', value=flavor)
+            datastore_flavor_mapping.save()
+
+    @classmethod
+    def datastore_flavor_delete(cls, datastore_version_id, flavor_id):
+        db_api.configure_db(CONF)
+        try:
+            db_record = DBDatastoreVersionMetadata.find_by(
+                datastore_version_id=datastore_version_id,
+                key='flavor', value=flavor_id)
+            db_record.delete()
+        except exception.ModelNotFoundError:
+            raise exception.DatastoreFlavorAssociationNotFound(
+                version_id=datastore_version_id, flavor_id=flavor_id)
+

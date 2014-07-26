@@ -42,6 +42,7 @@ from trove.instance.tasks import InstanceTasks
 from trove.taskmanager import api as task_api
 from trove.openstack.common import log as logging
 from trove.openstack.common.gettextutils import _
+from trove.datastore.models import DBDatastoreVersionMetadata
 
 
 CONF = cfg.CONF
@@ -632,6 +633,16 @@ class Instance(BuiltInstance):
                datastore, datastore_version, volume_size, backup_id,
                availability_zone=None, nics=None, configuration_id=None,
                slave_of_id=None):
+
+        # To ensure that the flavor is available for the datastore version
+        bound_flavors = DBDatastoreVersionMetadata.find_all(
+            datastore_version_id=datastore_version.id,
+            key='flavor', deleted=False
+        )
+        bound_flavors = tuple(f.value for f in bound_flavors)
+        if flavor_id not in bound_flavors:
+            raise exception.DatastoreFlavorAssociationNotFound(
+                version_id=datastore_version.id, flavor_id=flavor_id)
 
         datastore_cfg = CONF.get(datastore_version.manager)
         client = create_nova_client(context)
